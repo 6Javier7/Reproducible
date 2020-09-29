@@ -1,0 +1,131 @@
+---
+title: "Project 1"
+author: "Javier"
+date: "29/9/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Load packages
+
+
+```{r global, warnings = F, messages = F}
+library(data.table)
+library(purrr)
+library(dplyr)
+library(tidyr)
+library(lattice)
+library(ggplot2)
+```
+
+* * *
+
+
+#### Load data
+
+
+```{r data}
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip", 
+              "Activity_monitoring.zip")
+unzip("Activity_monitoring.zip")
+activity <- read.csv("activity.csv")
+data <- data.table(activity)
+```
+* * *
+
+#### Histogram of the total number of steps taken each day
+
+For the first plot i choose use lattice
+
+```{r histogram1}
+data[,Date := as.Date(data$date, "%Y-%m-%d")] #transform to a date format
+data2 <- data %>% group_by(Date, date) %>% summarise(stepspd = sum(steps, na.rm = T), median = median(steps, na.rm = T), mean = mean(steps, na.rm = T), .groups = "drop")
+with(data2, histogram(~stepspd, xlab = "Total Number of Steps per Day", par.settings = list(plot.polygon = list(col = "grey"))))
+```
+
+* * *
+
+#### Mean and median number of steps taken each day
+
+
+```{r summary}
+data2 <- data %>% group_by(Date, date) %>% summarise(stepspd = sum(steps, na.rm = T), median = median(steps, na.rm = T), mean = mean(steps, na.rm = T), .groups = "drop")
+print(head(data2[,-2]) , type = "html") #mean and median of the data
+```
+
+* * *
+
+
+#### Time series plot of the average number of steps taken
+
+
+```{r timeseries1}
+int <- data[ , lapply(.SD, mean, na.rm = T), .SDcols = "steps", by = "interval"]
+with(int, plot(steps ~ interval, type = "l", ylab = "Average of Steps", xlab = "Interval", col = "grey"))
+```
+
+* * *
+
+
+#### The 5-minute interval that, on average, contains the maximum number of steps
+
+The minute with the highgest average is the 835 with average above 200 steps
+
+```{r maximun}
+int[steps == max(steps),] #interval 835 is the highest point
+```
+
+* * *
+
+
+#### Code to describe and show a strategy for imputing missing data
+
+I just shortcut the missing data, but i don`t eliminate directly becouse in the function mean and median the argument `na.ra = T` if enough look at the different, fisrt the table with the mean for the data whithout missing values 
+
+
+```{r missdata1}
+data3 <- na.omit(data) #data whithout missing values has less rows
+data4 <- data3 %>% group_by(Date, date) %>% summarise(stepspd = sum(steps), median = median(steps), mean = mean(steps, na.rm = T), .groups = "drop")
+print(head(data4[,-2]) , type = "html") #mean and median of the data
+```
+
+and now the data we all of rows using `na.rm = T` for the mean and median calculation
+
+
+```{r missdata2}
+data2 <- data %>% group_by(Date, date) %>% summarise(stepspd = sum(steps, na.rm = T), median = median(steps, na.rm = T), mean = mean(steps, na.rm = T), .groups = "drop")
+print(head(data2[,-2]) , type = "html") #mean and median of the data
+```
+
+i don`t see much difference so i continui with the original all the data
+
+
+* * *
+
+
+#### Histogram of the total number of steps taken each day after missing values are imputed
+
+
+```{r histogram2}
+with(data2, histogram(~stepspd, xlab = "Total Number of Steps per Day", par.settings = list(plot.polygon = list(col = "grey"))))
+```
+
+* * *
+
+
+#### Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
+
+The names of the days are in spanish becouse the software that i have is in spanish so in spanis the days names of the weekdays are Lunes, Martes, Miércoles, Jueves and Viernes, in the other hand the names of the weekend days are Sábado and Domingo
+
+```{r weeks}
+data[ , lapply(.SD, weekdays), .SDcols = "Date"]
+data[ , day := weekdays(Date)]
+data[ , typeday := day]
+data <- 
+data %>% mutate(typeday = ifelse(day %in% c("lunes", "martes", "miércoles", "jueves", "viernes"), "weekday", ifelse(day %in% c("sábado", "domingo"), "weekend", "nothing")))
+int1 <- data[ , lapply(.SD, mean, na.rm = T), .SDcols = "steps", by = c("interval", "typeday")]
+ggplot(int1, aes(x = interval, y = steps, col = typeday)) + geom_line() + theme_classic() + labs(x = "Interval", y = "Average of Steps", col = "Days") + scale_colour_manual(values = c("grey", "pink"))
+```
